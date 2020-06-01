@@ -3,6 +3,8 @@ package org.pcchen.api;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.exceptions.DeserializationException;
+import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
 import java.util.List;
@@ -20,26 +22,131 @@ public class TestConnection {
 
         //可以通过conf代码指定，也可以通过在classpath目录下添加hbase-site.xml文件中指定
         conf.set("hbase.zookeeper.quorum", "10.10.32.61");
+//        conf.set("hbase.zookeeper.property.clientPort", "2181");
         conf.set("hbase.zookeeper.property.clientPort", "2181");
 //        conf.set("hbase.master", "10.10.32.61:60000");
+        //1、获取连接对象
         Connection connection = ConnectionFactory.createConnection(conf);
+        //2、获取操作对象：admin
         HBaseAdmin admin = (HBaseAdmin) connection.getAdmin();
 
-        Table student = connection.getTable(TableName.valueOf("student"));
-        //查询t01表中所有行数据
-        Scan scan = new Scan();
-        ResultScanner result = student.getScanner(scan);//得到的是数据集
-        Result itemResult = null;
-        while ((itemResult = result.next()) != null) {
-            List<Cell> cells = itemResult.listCells();//将每条数据存到Cell对象里
-            for (Cell cell : cells) {
-                System.out.println(new String(CellUtil.cloneFamily(cell)) + new String(CellUtil.cloneQualifier(cell)) + new String(CellUtil.cloneValue(cell)));
-            }
+        //3、操作数据库
+        //3.1、判断命名空间
+        try {
+            admin.getNamespaceDescriptor("pcchen");
+        } catch (IOException e) {
+            NamespaceDescriptor namespaceDescriptor = NamespaceDescriptor.create("pcchen").build();
+            admin.createNamespace(namespaceDescriptor);
         }
+
+        //3.2、判断hbase中是否存在某张表
+        TableName tableName = TableName.valueOf("pcchen:student");
+        boolean flag = admin.tableExists(tableName);
+        System.out.println("表是否存在：" + flag);
+
+        if (!flag) {
+            //当表存在时
+            //创建表，添加列族
+            HColumnDescriptor hd = new HColumnDescriptor("info");
+            HTableDescriptor td = new HTableDescriptor(tableName);
+            td.addFamily(hd);
+
+            admin.createTable(td);
+            System.out.println("创建表【" + tableName + "】成功!");
+        } else {
+            String rowKey = "1001";
+
+            System.out.println("表【" + tableName + "】已经存在!");
+
+            //3.3、当表存在时，查询数据以及添加数据
+            Table table = connection.getTable(tableName);
+
+            Put put = new Put(Bytes.toBytes(rowKey));
+            System.out.println(new String(put.getRow()));
+            put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("name2"), Bytes.toBytes("wangwu"));
+
+            table.put(put);
+        }
+
+//        //查询t01表中所有行数据
+//        Scan scan = new Scan();
+//        ResultScanner result = student.getScanner(scan);//得到的是数据集
+//        Result itemResult = null;
+//        while ((itemResult = result.next()) != null) {
+//            List<Cell> cells = itemResult.listCells();//将每条数据存到Cell对象里
+//            for (Cell cell : cells) {
+//                System.out.println(new String(CellUtil.cloneFamily(cell)) + new String(CellUtil.cloneQualifier(cell)) + new String(CellUtil.cloneValue(cell)));
+//            }
+//        }
 
 
 //        boolean studentBoolean = admin.tableExists("student");
 //        Configuration configuration = admin.getConfiguration();
 //        System.out.println(configuration.toString());
+    }
+
+    /**
+     * 判断指定表是否存在
+     *
+     * @param admin
+     * @param tableName
+     * @return
+     */
+    public boolean isTableExist(HBaseAdmin admin, String tableName) {
+        try {
+            return admin.tableExists(tableName);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * 当表不存在时，创建表
+     *
+     * @param admin
+     * @param tableName
+     */
+    public void createTable(HBaseAdmin admin, String tableName, String... columnFailies) {
+        try {
+            if (!admin.tableExists(tableName)) {
+                HTableDescriptor hTableDescriptor = new HTableDescriptor(TableName.valueOf(tableName));
+
+                //向表中插入烈族
+                for (String columnFaily : columnFailies) {
+                    hTableDescriptor.addFamily(HColumnDescriptor.parseFrom(columnFaily.getBytes("utf-8")));
+                }
+
+                admin.createTable(hTableDescriptor);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (DeserializationException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 删除表
+     *
+     * @param admin
+     * @param tableName
+     */
+    public void deleteTable(HBaseAdmin admin, String tableName) {
+        try {
+            if (isTableExist(admin, tableName)) {
+                admin.disableTable(tableName);
+                admin.deleteTable(tableName);
+                System.out.println("表【" + tableName + "】删除成功");
+            } else {
+                System.out.println("表【" + tableName + "】不存在");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void addRowData(String tableName, String rowkey, String columnName, String value) {
+
     }
 }
