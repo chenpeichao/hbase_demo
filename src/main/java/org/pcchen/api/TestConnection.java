@@ -78,6 +78,13 @@ public class TestConnection {
 
                 table.put(put);
             }
+
+            //删除指定rowkey数据
+            new TestConnection().deleteByRowkey((HTable) table, "info");
+            //获取scan全部数据
+            new TestConnection().getScanner((HTable) table);
+            table.close();
+            connection.close();
         }
 
     }
@@ -109,22 +116,21 @@ public class TestConnection {
             if (!admin.tableExists(tableName)) {
                 HTableDescriptor hTableDescriptor = new HTableDescriptor(TableName.valueOf(tableName));
 
-                //向表中插入烈族
+                //向表中插入列族
                 for (String columnFaily : columnFailies) {
-                    hTableDescriptor.addFamily(HColumnDescriptor.parseFrom(columnFaily.getBytes("utf-8")));
+                    hTableDescriptor.addFamily(new HColumnDescriptor(columnFaily.getBytes("utf-8")));
                 }
 
                 admin.createTable(hTableDescriptor);
             }
         } catch (IOException e) {
             e.printStackTrace();
-        } catch (DeserializationException e) {
-            e.printStackTrace();
         }
     }
 
     /**
      * 删除表
+     * 删除表之前需要先将表disable
      *
      * @param admin
      * @param tableName
@@ -143,7 +149,61 @@ public class TestConnection {
         }
     }
 
-    public void addRowData(String tableName, String rowkey, String columnName, String value) {
+    /**
+     * 根据rowkey删除表中记录
+     */
+    public void deleteByRowkey(HTable table, String rowKey) {
+        Delete delete = new Delete(Bytes.toBytes(rowKey));
+        try {
+            table.delete(delete);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
+    /**
+     * 删除指定列族下的指定字段的记录
+     * @param table
+     * @param rowKey
+     * @param family
+     * @param qualify
+     */
+    public void deleteByQualify(HTable table, String rowKey, String family, String qualify) {
+        Delete delete = new Delete(Bytes.toBytes(rowKey));
+
+        delete.addColumns(Bytes.toBytes(family), Bytes.toBytes(qualify));
+
+        try {
+            table.delete(delete);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 遍历所有数据
+     *
+     * @param table
+     */
+    public void getScanner(HTable table) {
+        Scan scan = new Scan();
+        try {
+            ResultScanner scanner = table.getScanner(scan);
+            for (Result result : scanner) {
+                if (!result.isEmpty()) {
+                    for (Cell cell : result.listCells()) {
+                        System.out.print("row: " + Bytes.toString(CellUtil.cloneRow(cell)));
+                        System.out.print("; family: " + Bytes.toString(CellUtil.cloneFamily(cell)));
+                        System.out.print("; qualifier: " + Bytes.toString(CellUtil.cloneQualifier(cell)));
+                        System.out.print("; value: " + Bytes.toString(CellUtil.cloneValue(cell)));
+                        System.out.println("-------------------------------------");
+                    }
+                }
+                System.out.println("================================");
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
