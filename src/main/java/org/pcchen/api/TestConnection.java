@@ -45,7 +45,7 @@ public class TestConnection {
         System.out.println("表是否存在：" + flag);
 
         if (!flag) {
-            //当表存在时
+            //当表不存在时
             //创建表，添加列族
             HColumnDescriptor hd = new HColumnDescriptor("info");
             HTableDescriptor td = new HTableDescriptor(tableName);
@@ -56,33 +56,30 @@ public class TestConnection {
         } else {
             String rowKey = "1001";
 
-            System.out.println("表【" + tableName + "】已经存在!");
-
             //3.3、当表存在时，查询数据以及添加数据
             Table table = connection.getTable(tableName);
 
-            Put put = new Put(Bytes.toBytes(rowKey));
-            System.out.println(new String(put.getRow()));
-            put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("name2"), Bytes.toBytes("wangwu"));
+            Get get = new Get(Bytes.toBytes(rowKey));
+            Result result = table.get(get);
 
-            table.put(put);
+            if (!result.isEmpty()) {
+                System.out.println("表【" + tableName + "】已经存在rowkey为【" + rowKey + "】的数据!");
+                for (Cell cell : result.listCells()) {
+                    System.out.println("rowKey：" + Bytes.toString(CellUtil.cloneRow(cell)));
+                    System.out.println("Family：" + Bytes.toString(CellUtil.cloneFamily(cell)));
+                    System.out.println("Qualifier：" + Bytes.toString(CellUtil.cloneQualifier(cell)));
+                    System.out.println("Value：" + Bytes.toString(CellUtil.cloneValue(cell)));
+                }
+            } else {
+                System.out.println("表【" + tableName + "】已经不存在rowkey为【" + rowKey + "】的数据!");
+                Put put = new Put(Bytes.toBytes(rowKey));
+                System.out.println(new String(put.getRow()));
+                put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("name2"), Bytes.toBytes("wangwu"));
+
+                table.put(put);
+            }
         }
 
-//        //查询t01表中所有行数据
-//        Scan scan = new Scan();
-//        ResultScanner result = student.getScanner(scan);//得到的是数据集
-//        Result itemResult = null;
-//        while ((itemResult = result.next()) != null) {
-//            List<Cell> cells = itemResult.listCells();//将每条数据存到Cell对象里
-//            for (Cell cell : cells) {
-//                System.out.println(new String(CellUtil.cloneFamily(cell)) + new String(CellUtil.cloneQualifier(cell)) + new String(CellUtil.cloneValue(cell)));
-//            }
-//        }
-
-
-//        boolean studentBoolean = admin.tableExists("student");
-//        Configuration configuration = admin.getConfiguration();
-//        System.out.println(configuration.toString());
     }
 
     /**
