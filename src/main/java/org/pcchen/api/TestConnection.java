@@ -3,11 +3,9 @@ package org.pcchen.api;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.exceptions.DeserializationException;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * 测试连接类
@@ -18,6 +16,10 @@ import java.util.List;
  **/
 public class TestConnection {
     public static void main(String[] args) throws IOException {
+        //获取项目根路径
+        //E:\program_github_idea\hbase_demo\hbase_demo
+//        System.out.println(System.getProperty("user.dir"));
+
         Configuration conf = HBaseConfiguration.create();
 
         //可以通过conf代码指定，也可以通过在classpath目录下添加hbase-site.xml文件中指定
